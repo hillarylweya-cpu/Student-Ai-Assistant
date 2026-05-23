@@ -126,6 +126,14 @@ def create_tables(conn):
     """)
 
     conn.commit()
+    
+    # Migration: Add gpa_target column if it doesn't exist
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN gpa_target REAL DEFAULT 4.0")
+        conn.commit()
+    except sqlite3.OperationalError:
+        # Column already exists
+        pass
 
 
 # ======================================================
