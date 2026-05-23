@@ -250,6 +250,22 @@ if "draft_assignment" not in st.session_state:
     }
 
 # --- Authentication Logic (Simplified) ---
+if not st.session_state.logged_in:
+
+    st.markdown(
+        '<div class="main-title">🎓 EduMate AI</div>',
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        '<div class="sub-title">Global AI Education Platform</div>',
+        unsafe_allow_html=True
+    )
+
+    menu = st.sidebar.selectbox(
+        "Menu",
+        ["Login", "Register"]
+    )
 def authenticate(username, password):
     # In a real app, this would check against a secure user database
     if username == "student" and password == "password":
