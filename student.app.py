@@ -1,213 +1,294 @@
 import streamlit as st
-import pandas as pd
-from datetime import datetime, date, timedelta
-import time
+import datetime
+import pandas as pd # Assuming pandas might be used for data handling/display
+# import database as db # Uncomment this once database.py is defined
+# import ai_engine as ai # Uncomment this once ai_engine.py is defined
 
-import database as db
-import ai_engine as ai
+# --- Placeholder for database functions ---
+# In a real app, these would interact with a database (e.g., SQLite, PostgreSQL)
+class MockDatabase:
+    def __init__(self):
+        self.assignments = [
+            (1, "Essay on AI", "Computer Science", "2026-06-01", "High", "Hard", "Pending", datetime.datetime.now()),
+            (2, "Chemistry Lab Report", "Chemistry", "2026-05-28", "Medium", "Medium", "In Progress", datetime.datetime.now()),
+            (3, "Math Homework 1", "Mathematics", "2026-05-25", "Low", "Easy", "Completed", datetime.datetime.now()),
+        ]
+        self.next_id = 4
 
-try:
-    import plotly.express as px
-    import plotly.graph_objects as go
-    PLOTLY_AVAILABLE = True
-except ImportError:
-    PLOTLY_AVAILABLE = False
+    def init_db(self):
+        st.success("Mock Database Initialized (no real database used).")
 
-# ── Page Config ───────────────────────────────────────
+    def add_assignment(self, title, subject, due_date, priority, difficulty, status):
+        self.assignments.append((self.next_id, title, subject, due_date, priority, difficulty, status, datetime.datetime.now()))
+        self.next_id += 1
+        st.success(f"Assignment '{title}' added!")
 
+    def get_assignments(self):
+        return self.assignments
+
+    def update_assignment(self, assignment_id, title, subject, due_date, priority, difficulty, status):
+        for i, assign in enumerate(self.assignments):
+            if assign[0] == assignment_id:
+                self.assignments[i] = (assignment_id, title, subject, due_date, priority, difficulty, status, assign[7])
+                st.success(f"Assignment '{title}' updated!")
+                return
+        st.error("Assignment not found.")
+
+    def delete_assignment(self, assignment_id):
+        self.assignments = [assign for assign in self.assignments if assign[0] != assignment_id]
+        st.success("Assignment deleted!")
+
+# Initialize mock database
+db = MockDatabase() # In a real app, this would be `db.init_db()` and calls to the actual database functions
+
+# --- Placeholder for AI Engine (from ai_engine.py) ---
+class MockAIEngine:
+    KNOWLEDGE_BASE = {
+        "CHEMISTRY": {
+            "summary": "Chemistry is the scientific study of the properties and behavior of matter. It is a natural science that covers the elements that make up matter to the compounds composed of atoms, molecules and ions: their composition, structure, properties, behavior and the changes they undergo during a reaction with other substances.",
+            "whiteboard": "### Chemistry — Periodic Table\n\n```\n  H                                                  He\n  Li Be                               B C N O F Ne\n  Na Mg                             Al Si P S Cl Ar\n```\n- Group 1: Alkali Metals\n- Group 17: Halogens\n- Group 18: Noble Gases\n",
+            "tips": [
+                "Visualise molecular shapes in 3D.",
+                "Practice balancing equations regularly.",
+                "Understand reaction mechanisms step-by-step.",
+            ],
+            "flashcards": [
+                ("What is Avogadro's number?", "6.022 × 10²³ particles per mole."),
+                ("What pH is neutral?", "7.0 (pure water)."),
+                ("Describe an exothermic reaction.", "A reaction that releases heat to its surroundings."),
+            ],
+        },
+        "COMPUTER SCIENCE": {
+            "summary": "Computer Science is the study of computation and information. Computer science deals with theory of computation, algorithms, computational problems and the design of computer systems hardware and software.",
+            "whiteboard": (
+                "### CS — Binary Search Tree\n\n"\
+                "```\n"\
+                "            [8]   ← Root\n"\
+                "           /   \\\n"\
+                "         [3]   [10]\n"\
+                "        /   \\     \\\n"\
+                "      [1]   [6]   [14]\n"\
+                "```\n"\
+                "- Left child < parent < right child.\n"\
+                "- Lookup: O(log n) in a balanced tree."
+            ),
+            "tips": [
+                "Trace code manually using a dry-run table.",
+                "Practice coding problems regularly (e.g., LeetCode).",
+                "Understand data structures and algorithms deeply.",
+            ],
+            "flashcards": [
+                ("What is a binary search tree?", "A tree-based data structure where each node has at most two children, typically referred to as left and right."),
+                ("What is Big O notation?", "A mathematical notation that describes the limiting behavior of a function when the argument tends towards a particular value or infinity."),
+                ("What is a 'stack'?", "A linear data structure which follows a particular order in which the operations are performed. The order is LIFO (Last In First Out)."),
+            ],
+        },
+         "MATHEMATICS": {
+            "summary": "Mathematics is the study of quantity, structure, space, and change. It deals with logical reasoning and quantitative calculation, and its development has involved an increasing degree of idealization and abstraction of its subject matter.",
+            "whiteboard": "### Maths — Quadratic Formula\n\n$$ x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a} $$\n\n- Used to find the roots of a quadratic equation: $$ ax^2 + bx + c = 0 $$\n",
+            "tips": [
+                "Practice problem-solving daily.",
+                "Understand the 'why' behind formulas, not just the 'how'.",
+                "Work through example problems step-by-step.",
+            ],
+            "flashcards": [
+                ("What is Pi (π) approximately?", "3.14159"),
+                ("What is the Pythagorean theorem?", "$$ a^2 + b^2 = c^2 $$ for a right-angled triangle."),
+                ("What is a derivative in calculus?", "It measures the sensitivity of change of a function's output with respect to a change in its input."),
+            ],
+        }
+    }
+
+    def get_subject_info(self, subject):
+        return self.KNOWLEDGE_BASE.get(subject.upper(), None)
+
+    def generate_flashcards(self, subject):
+        info = self.get_subject_info(subject)
+        return info["flashcards"] if info else []
+
+    def get_subject_summary(self, subject):
+        info = self.get_subject_info(subject)
+        return info["summary"] if info else "No summary available."
+
+    def get_subject_whiteboard(self, subject):
+        info = self.get_subject_info(subject)
+        return info["whiteboard"] if info else "No whiteboard content available."
+
+    def get_subject_tips(self, subject):
+        info = self.get_subject_info(subject)
+        return info["tips"] if info else []
+
+ai = MockAIEngine()
+
+# --- Page Config ---
 st.set_page_config(
     page_title="EduMate AI",
-    page_icon="🎓",
+    page_icon="📚",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="expanded"
 )
 
-# ── Styles ────────────────────────────────────────────
-
+# --- CSS Styling (from app.py snippets) ---
 st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap');
 
-html, body, [class*="css"] {
-    font-family: 'Outfit', sans-serif;
-    color: #f8fafc;
-}
-.stApp {
-    background: linear-gradient(135deg, #090d16 0%, #0f172a 40%, #1e1b4b 100%);
-    background-attachment: fixed;
-}
-.main-title {
-    text-align: center;
-    background: linear-gradient(90deg, #818cf8, #6366f1, #3b82f6);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    font-size: 58px;
-    font-weight: 800;
-    letter-spacing: -2px;
-    margin-bottom: 0;
-}
-.sub-title {
-    text-align: center;
-    color: #94a3b8;
-    font-size: 20px;
-    margin-bottom: 28px;
-}
-.glass-card {
-    background: rgba(255,255,255,0.04);
-    border-radius: 20px;
-    padding: 24px;
-    border: 1px solid rgba(255,255,255,0.08);
-    margin-bottom: 18px;
-}
-.metric-card {
-    background: rgba(255,255,255,0.05);
-    padding: 20px;
-    border-radius: 18px;
-    text-align: center;
-    border: 1px solid rgba(255,255,255,0.07);
-    margin-bottom: 14px;
-}
-.metric-card h1 {
-    font-size: 40px;
-    margin: 4px 0;
-    font-weight: 800;
-    background: linear-gradient(90deg, #60a5fa, #818cf8);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-.badge-pill {
-    background: linear-gradient(135deg, #4338ca, #1e1b4b);
-    border: 1px solid #6366f1;
-    color: #e0e7ff;
-    padding: 5px 12px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 600;
-    display: inline-block;
-    margin: 3px;
-}
-.stButton > button {
-    width: 100%;
-    border: none;
-    border-radius: 12px;
-    padding: 10px 18px;
-    font-size: 15px;
-    font-weight: 700;
-    background: linear-gradient(90deg, #4f46e5, #3b82f6);
-    color: white !important;
-    transition: all 0.25s ease;
-}
-.stButton > button:hover {
-    background: linear-gradient(90deg, #3b82f6, #2563eb);
-    transform: translateY(-2px);
-}
-.chat-user {
-    background: rgba(59,130,246,0.14);
-    border-left: 4px solid #3b82f6;
-    padding: 12px 18px;
-    border-radius: 0 16px 16px 0;
-    margin: 8px 0;
-}
-.chat-ai {
-    background: rgba(129,140,248,0.11);
-    border-left: 4px solid #818cf8;
-    padding: 12px 18px;
-    border-radius: 16px 0 16px 16px;
-    margin: 8px 0;
-}
-.active-class {
-    background: rgba(239,68,68,0.12);
-    border: 2px solid #ef4444;
-    border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 14px;
-    animation: pulse 2s infinite;
-}
-@keyframes pulse {
-    0%   { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
-    70%  { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
-    100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
-}
-.footer {
-    text-align: center;
-    color: #475569;
-    margin-top: 48px;
-    font-size: 13px;
-}
-</style>
-""", unsafe_allow_html=True)
+    html, body, [class*="css"] {
+        font-family: 'Outfit', sans-serif;
+        color: #f8fafc;
+    }
+    .stApp {
+        background: linear-gradient(135deg, #090d16 0%, #0f172a 40%, #1e1b4b 100%);
+        background-attachment: fixed;
+    }
+    .main-title {
+        text-align: center;
+        background: linear-gradient(90deg, #818cf8, #6366f1, #3b82f6);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: 58px;
+        font-weight: 800;
+        letter-spacing: -2px;
+        margin-bottom: 0;
+    }
+    .sub-title {
+        text-align: center;
+        color: #94a3b8;
+        font-size: 20px;
+        margin-bottom: 28px;
+    }
+    .glass-card {
+        background: rgba(255,255,255,0.04);
+        border-radius: 20px;
+        padding: 24px;
+        border: 1px solid rgba(255,255,255,0.08);
+        margin-bottom: 18px;
+    }
+    .metric-card {
+        background: rgba(255,255,255,0.05);
+        padding: 20px;
+        border-radius: 18px;
+        text-align: center;
+        border: 1px solid rgba(255,255,255,0.07);
+        margin-bottom: 14px;
+    }
+    .metric-card h1 {
+        font-size: 40px;
+        color: #818cf8;
+        margin-bottom: 5px;
+    }
+    .metric-card p {
+        color: #94a3b8;
+        font-size: 16px;
+    }
+    .stProgress > div > div > div > div {
+        background-color: #818cf8;
+    }
+    .stButton > button {
+        background-color: #6366f1;
+        color: white;
+        border-radius: 10px;
+        border: none;
+        padding: 10px 20px;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+    .stButton > button:hover {
+        background-color: #4f46e5;
+        transform: translateY(-2px);
+    }
+    .stTextInput > div > div > input, .stDateInput > label + div > div > input, .stSelectbox > div > div > div > div > div > div > input {
+        background-color: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        color: white;
+    }
+    .stTextInput > label, .stDateInput > label, .stSelectbox > label {
+        color: #94a3b8;
+        font-weight: 600;
+    }
+    .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
+        font-size:1.1rem;
+        color: #e2e8f0;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 12px;
+    }
+    .stTabs [data-baseweb="tab-list"] button {
+        background-color: rgba(255,255,255,0.08);
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.1);
+        padding: 10px 20px;
+    }
+    .stTabs [data-baseweb="tab-list"] button:hover {
+        background-color: rgba(255,255,255,0.15);
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #6366f1 !important;
+        border-color: #6366f1 !important;
+    }
+    .footer {
+        text-align: center;
+        color: #94a3b8;
+        font-size: 14px;
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-# ── Session State ─────────────────────────────────────
+# --- Session State Initialization ---
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+if "username" not in st.session_state:
+    st.session_state.username = ""
+if "draft_assignment" not in st.session_state:
+    st.session_state.draft_assignment = {
+        "title": "", "subject": "", "due_date": datetime.date.today(),
+        "priority": "Medium", "difficulty": "Medium", "status": "Pending"
+    }
 
-defaults = {
-    "logged_in": False,
-    "user_email": "",
-    "user_fullname": "",
-    "chat_history": [],
-    "quiz_questions": [],
-    "quiz_score": 0,
-    "quiz_timer_start": 0,
-    "battle_mode": False,
-    "draft_assignment": {"title": "", "subject": "", "priority": "Medium", "difficulty": "Medium"},
-}
-for key, val in defaults.items():
-    if key not in st.session_state:
-        st.session_state[key] = val
+# --- Authentication Logic (Simplified) ---
+def authenticate(username, password):
+    # In a real app, this would check against a secure user database
+    if username == "student" and password == "password":
+        st.session_state.authenticated = True
+        st.session_state.username = username
+        return True
+    return False
 
-# ═══════════════════════════════════════════════════════
-# AUTH SCREENS
-# ═══════════════════════════════════════════════════════
+def logout():
+    st.session_state.authenticated = False
+    st.session_state.username = ""
+    st.session_state.draft_assignment = {
+        "title": "", "subject": "", "due_date": datetime.date.today(),
+        "priority": "Medium", "difficulty": "Medium", "status": "Pending"
+    }
+    st.rerun()
 
-if not st.session_state.logged_in:
-    st.markdown('<div class="main-title">🎓 EduMate AI</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">Premium AI Education Platform</div>', unsafe_allow_html=True)
+if not st.session_state.authenticated:
+    st.markdown("<h1 class='main-title'>EduMate AI</h1>", unsafe_allow_html=True)
+    st.markdown("<p class='sub-title'>Your intelligent academic companion</p>", unsafe_allow_html=True)
 
-    auth_tab = st.sidebar.selectbox("Access", ["Login", "Register"])
+    col_login, col_features = st.columns([1, 1])
 
-    if auth_tab == "Register":
-        st.markdown("<div class='glass-card'><h2>Create Account</h2>", unsafe_allow_html=True)
-        fullname = st.text_input("Full Name")
-        email    = st.text_input("Email Address")
-        password = st.text_input("Password", type="password")
-        confirm  = st.text_input("Confirm Password", type="password")
-
-        if st.button("Register"):
-            if not fullname or not email or not password:
-                st.warning("All fields are required.")
-            elif password != confirm:
-                st.error("Passwords do not match.")
-            elif db.create_user(fullname, email, password):
-                st.success("Account created! Please log in.")
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.error("That email is already registered.")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    else:  # Login
-        col_form, col_features = st.columns([1.2, 1])
-
-        with col_form:
-            st.markdown("<div class='glass-card'><h2 style='text-align:center;'>Sign In</h2>", unsafe_allow_html=True)
-            email    = st.text_input("Email")
+    with col_login:
+        st.markdown("<div class='glass-card'><h3>Login</h3>", unsafe_allow_html=True)
+        with st.form("login_form"):
+            username = st.text_input("Username")
             password = st.text_input("Password", type="password")
-
-            if st.button("Sign In"):
-                user = db.login_user(email, password)
-                if user:
-                    st.session_state.logged_in     = True
-                    st.session_state.user_email    = user[2]
-                    st.session_state.user_fullname = user[1]
-                    st.success(f"Welcome back, {user[1]}!")
-                    st.balloons()
-                    time.sleep(1)
+            submitted = st.form_submit_button("Login")
+            if submitted:
+                if authenticate(username, password):
+                    st.success("Logged in successfully!")
                     st.rerun()
                 else:
-                    st.error("Invalid email or password.")
-            st.markdown("</div>", unsafe_allow_html=True)
+                    st.error("Invalid username or password.")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-        with col_features:
-            st.markdown("""
+    with col_features:
+        st.markdown("""
             <div class='glass-card'>
                 <h3 style='color:#818cf8;'>What's included</h3>
                 <p>AI Assistant — ask questions, generate flashcards, summarise notes, draw concept boards.</p>
@@ -219,88 +300,64 @@ if not st.session_state.logged_in:
             """, unsafe_allow_html=True)
 
     st.markdown("<div class='footer'>© 2026 EduMate AI</div>", unsafe_allow_html=True)
-    st.stop()
+    st.stop() # Stop further execution if not authenticated
 
-# ═══════════════════════════════════════════════════════
-# MAIN APP — authenticated students only
-# ═══════════════════════════════════════════════════════
-
-# Sidebar
-st.sidebar.markdown("<h2 style='text-align:center;'>🎓 EduMate AI</h2>", unsafe_allow_html=True)
-st.sidebar.success(f"{st.session_state.user_fullname}\n{st.session_state.user_email}")
-
-page = st.sidebar.radio("Navigate", [
-    "Dashboard",
-    "AI Assistant",
-    "Assignments",
-    "Timetable",
-    "Quiz Arena",
-    "Analytics",
-])
-
+# --- Main App (Authenticated Users) ---
+st.sidebar.markdown(f"## Welcome, {st.session_state.username.capitalize()}!")
 if st.sidebar.button("Logout"):
-    for key in defaults:
-        st.session_state[key] = defaults[key]
-    st.rerun()
+    logout()
 
-# Fetch data once
-assignments    = db.get_assignments(st.session_state.user_email)
-timetable      = db.get_timetable(st.session_state.user_email)
-streak, badges = db.get_or_update_streak(st.session_state.user_email)
-notifications  = db.get_notifications(st.session_state.user_email)
-quiz_records   = db.get_quiz_records(st.session_state.user_email)
-focus_sessions = db.get_focus_sessions(st.session_state.user_email)
-gpa_target     = db.get_user_gpa_target(st.session_state.user_email)
+st.markdown("<h1 class='main-title'>Dashboard</h1>", unsafe_allow_html=True)
+st.markdown("<p class='sub-title'>Overview of your academic progress</p>", unsafe_allow_html=True)
 
-# ── 1. Dashboard ──────────────────────────────────────
+# Fetch assignments (from mock DB)
+assignments = db.get_assignments()
 
-if page == "Dashboard":
-    hour = datetime.now().hour
-    greeting = "Good morning" if hour < 12 else "Good afternoon" if hour < 18 else "Good evening"
-    now_str  = datetime.now().strftime("%I:%M %p")
+# Convert assignments to a more usable format for display and calculations
+assignments_df = pd.DataFrame(assignments, columns=[
+    "id", "Title", "Subject", "Due Date", "Priority", "Difficulty", "Status", "Created At"
+])
+# Convert 'Due Date' column to datetime objects for sorting and comparison
+assignments_df['Due Date'] = pd.to_datetime(assignments_df['Due Date'])
 
-    quotes = [
-        "Believe you can and you're halfway there.",
-        "Education is the most powerful weapon you can use to change the world.",
-        "The secret of getting ahead is getting started.",
-        "Every expert was once a beginner.",
-    ]
-    quote = quotes[hash(st.session_state.user_fullname) % len(quotes)]
+# --- Metrics ---
+col1, col2, col3, col4 = st.columns(4)
 
-    st.markdown(f"""
-    <div class='glass-card' style='border-left:6px solid #6366f1;'>
-        <h1 style='margin:0;'>{greeting}, {st.session_state.user_fullname} 👋</h1>
-        <p style='color:#a5b4fc; margin-top:6px;'>"{quote}"</p>
-        <p style='color:#64748b; margin:0;'>⏰ {now_str}</p>
-    </div>
-    """, unsafe_allow_html=True)
+with col1:
+    total_assignments = len(assignments)
+    st.markdown(f"<div class='metric-card'><h1>{total_assignments}</h1><p>Total Assignments</p></div>", unsafe_allow_html=True)
+with col2:
+    completed_assignments = assignments_df[assignments_df['Status'] == 'Completed'].shape[0]
+    st.markdown(f"<div class='metric-card'><h1>{completed_assignments}</h1><p>Completed</p></div>", unsafe_allow_html=True)
+with col3:
+    pending_assignments = assignments_df[assignments_df['Status'] == 'Pending'].shape[0]
+    st.markdown(f"<div class='metric-card'><h1>{pending_assignments}</h1><p>Pending</p></div>", unsafe_allow_html=True)
+with col4:
+    upcoming_due = assignments_df[
+        (assignments_df['Status'] != 'Completed') &
+        (assignments_df['Status'] != 'Submitted') &
+        (assignments_df['Due Date'] > datetime.datetime.now())
+    ].sort_values(by='Due Date').head(1)
+    if not upcoming_due.empty:
+        days_left = (upcoming_due['Due Date'].iloc[0].date() - datetime.date.today()).days
+        st.markdown(f"<div class='metric-card'><h1>{days_left}</h1><p>Days to Due ({upcoming_due['Subject'].iloc[0]})</p></div>", unsafe_allow_html=True)
+    else:
+        st.markdown("<div class='metric-card'><h1>N/A</h1><p>Upcoming Due</p></div>", unsafe_allow_html=True)
 
-    c1, c2, c3, c4 = st.columns(4)
-    pending = len([a for a in assignments if a[5] not in ("Completed", "Graded")])
-    for col, label, value, sub in [
-        (c1, "Pending Tasks",  pending,         "Action required"),
-        (c2, "Classes Set",    len(timetable),  "In your timetable"),
-        (c3, "Streak",         f"{streak} days","Keep it going!"),
-        (c4, "Target GPA",     f"{gpa_target:.2f}", "Track in Analytics"),
-    ]:
-        col.markdown(f"""
-        <div class='metric-card'>
-            <p style='color:#94a3b8; font-size:14px; margin:0;'>{label}</p>
-            <h1>{value}</h1>
-            <span style='color:#64748b; font-size:12px;'>{sub}</span>
-        </div>
-        """, unsafe_allow_html=True)
+# --- Main Content Area: Tabs for Dashboard, AI Assistant, Assignments ---
+tab_dashboard, tab_ai_assistant, tab_assignments = st.tabs(["📊 Dashboard", "🧠 AI Assistant", "📝 Assignments"])
 
+with tab_dashboard:
     col_left, col_right = st.columns([1.5, 1])
 
     with col_left:
         st.markdown("<div class='glass-card'><h3>Subject Completion</h3>", unsafe_allow_html=True)
         subject_progress: dict = {}
-        for a in assignments:
-            sub, status = a[2], a[5]
+        for _, a in assignments_df.iterrows(): # Iterate over DataFrame rows
+            sub, status = a["Subject"], a["Status"]
             subject_progress.setdefault(sub, {"total": 0, "done": 0})
             subject_progress[sub]["total"] += 1
-            if status in ("Completed", "Graded"):
+            if status in ("Completed", "Graded"): # Assuming 'Graded' is also a completion status
                 subject_progress[sub]["done"] += 1
         if subject_progress:
             for sub, p in subject_progress.items():
@@ -311,497 +368,145 @@ if page == "Dashboard":
             st.info("Add assignments to track progress.")
         st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown("<div class='glass-card'><h3>Timetable Summary</h3>", unsafe_allow_html=True)
-        if timetable:
-            for t in timetable:
-                st.markdown(f"📅 **{t[2]}** — {t[1]} ({t[3]}–{t[4]}) | {t[5]}")
-        else:
-            st.info("No classes added yet.")
-        st.markdown("</div>", unsafe_allow_html=True)
-
     with col_right:
-        st.markdown("<div class='glass-card'><h3>Badges</h3>", unsafe_allow_html=True)
-        badge_html = "".join(f"<span class='badge-pill'>{b}</span>" for b in badges)
-        st.markdown(badge_html or "<p style='color:#64748b;'>No badges yet. Keep studying!</p>", unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
         st.markdown("<div class='glass-card'><h3>Upcoming Deadlines</h3>", unsafe_allow_html=True)
-        active = [a for a in assignments if a[5] not in ("Completed", "Graded")]
-        if active:
-            for a in active:
-                try:
-                    due = datetime.strptime(a[3], "%Y-%m-%d").date()
-                    delta = (due - date.today()).days
-                    if delta < 0:
-                        status_html = f"<span style='color:#f87171;'>Overdue by {abs(delta)} days</span>"
-                    elif delta == 0:
-                        status_html = "<span style='color:#f87171;'>Due today!</span>"
-                    elif delta == 1:
-                        status_html = "<span style='color:#fbbf24;'>Due tomorrow</span>"
-                    else:
-                        status_html = f"<span style='color:#34d399;'>Due in {delta} days</span>"
-                    st.markdown(f"✍️ **{a[1]}** ({a[2]}) — {status_html}", unsafe_allow_html=True)
-                except ValueError:
-                    st.markdown(f"✍️ **{a[1]}** ({a[2]}) — {a[3]}")
+        # Filter for pending/in-progress assignments with future due dates
+        upcoming_df = assignments_df[
+            (assignments_df['Status'].isin(['Pending', 'In Progress'])) &
+            (assignments_df['Due Date'] >= pd.Timestamp(datetime.date.today()))
+        ].sort_values(by='Due Date')
+
+        if not upcoming_df.empty:
+            for _, row in upcoming_df.head(5).iterrows(): # Show top 5 upcoming
+                days_left = (row['Due Date'].date() - datetime.date.today()).days
+                st.write(f"**{row['Title']}** ({row['Subject']})")
+                st.caption(f"Due: {row['Due Date'].strftime('%Y-%m-%d')} ({days_left} days left)")
         else:
-            st.success("No pending assignments!")
+            st.info("No upcoming deadlines.")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Notifications
-    unread = len([n for n in notifications if n[3] == 0])
-    st.markdown(f"<div class='glass-card'><h3>Notifications ({unread} unread)</h3>", unsafe_allow_html=True)
-    if notifications:
-        for n in notifications[:5]:
-            dot = "🔵" if n[3] == 0 else "⚪"
-            st.markdown(f"{dot} <small style='color:#64748b;'>{n[2]}</small> {n[1]}", unsafe_allow_html=True)
-        if st.button("Mark all as read"):
-            db.mark_notifications_read(st.session_state.user_email)
-            st.rerun()
-    else:
-        st.write("No notifications.")
-    st.markdown("</div>", unsafe_allow_html=True)
 
-# ── 2. AI Assistant ───────────────────────────────────
+with tab_ai_assistant:
+    st.markdown("<h2 style='text-align: center; color: #818cf8;'>AI Study Assistant</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #94a3b8;'>Get summaries, flashcards, and study tips for your subjects.</p>", unsafe_allow_html=True)
 
-elif page == "AI Assistant":
-    st.markdown("<div class='glass-card'><h1 style='margin:0;'>AI Assistant</h1><p style='color:#a5b4fc;'>Chat, flashcards, whiteboard, notes translator</p></div>", unsafe_allow_html=True)
+    subjects = list(ai.KNOWLEDGE_BASE.keys()) # Get subjects from the mock AI engine
+    selected_subject = st.selectbox("Select a Subject", subjects)
 
-    col_ctrl, col_chat = st.columns([1, 2])
+    if selected_subject:
+        subject_info = ai.get_subject_info(selected_subject)
+        if subject_info:
+            tab_summary, tab_flashcards, tab_whiteboard, tab_tips = st.tabs(["Summary", "Flashcards", "Concept Board", "Study Tips"])
 
-    with col_ctrl:
-        st.markdown("<div class='glass-card'><h3>Settings</h3>", unsafe_allow_html=True)
-        persona_mode   = st.selectbox("Tutor personality", ["Friendly Tutor", "Strict Teacher", "Motivational Coach"])
-        active_subject = st.selectbox("Subject focus", ["Mathematics", "Biology", "Physics", "Chemistry", "Computer Science"])
-        st.markdown("</div>", unsafe_allow_html=True)
+            with tab_summary:
+                st.markdown(f"<div class='glass-card'><h3>Summary for {selected_subject.capitalize()}</h3><p>{subject_info['summary']}</p></div>", unsafe_allow_html=True)
 
-        st.markdown("<div class='glass-card'><h3>Note Summariser</h3>", unsafe_allow_html=True)
-        uploaded = st.file_uploader("Upload notes (TXT, PDF, DOCX)", type=["txt", "pdf", "docx"])
-        if uploaded and st.button("Summarise"):
-            summary = (
-                f"**Summary of `{uploaded.name}`**\n\n"
-                "1. Core concepts rely on fundamental principles and rules.\n"
-                "2. Memorise formulas early; build mind-maps to connect terms.\n"
-                "3. Review step-by-step before exams."
-            )
-            st.session_state.chat_history.append({"role": "user",      "content": f"Summarise: {uploaded.name}"})
-            st.session_state.chat_history.append({"role": "assistant", "content": summary})
-            st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+            with tab_flashcards:
+                st.markdown(f"<div class='glass-card'><h3>Flashcards for {selected_subject.capitalize()}</h3>", unsafe_allow_html=True)
+                flashcards = subject_info["flashcards"]
+                if flashcards:
+                    for i, (question, answer) in enumerate(flashcards):
+                        with st.expander(f"Flashcard {i+1}: {question}"):
+                            st.write(answer)
+                else:
+                    st.info("No flashcards available for this subject.")
+                st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown("<div class='glass-card'><h3>Translate Notes</h3>", unsafe_allow_html=True)
-        lang   = st.selectbox("Target language", ["Spanish", "French", "German", "Swahili", "Japanese", "Chinese"])
-        t_text = st.text_area("Text to translate", key="trans_input")
-        if st.button("Translate"):
-            if t_text.strip():
-                st.code(ai.translate_notes(t_text, lang))
-        st.markdown("</div>", unsafe_allow_html=True)
+            with tab_whiteboard:
+                st.markdown(f"<div class='glass-card'><h3>Concept Board for {selected_subject.capitalize()}</h3>", unsafe_allow_html=True)
+                st.markdown(subject_info["whiteboard"])
+                st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown("<div class='glass-card'><h3>Flashcard Generator</h3>", unsafe_allow_html=True)
-        fc_prompt = st.text_input("Topic prompt", placeholder="e.g. photosynthesis")
-        if st.button("Generate Flashcards"):
-            if fc_prompt.strip():
-                cards = ai.generate_flashcards(fc_prompt, active_subject)
-                for card in cards:
-                    db.add_flashcard(st.session_state.user_email, card["subject"], card["front"], card["back"])
-                st.success(f"Generated {len(cards)} flashcards for {active_subject}.")
-                db.add_notification(st.session_state.user_email, f"Flashcards created for {active_subject}.")
-        st.markdown("</div>", unsafe_allow_html=True)
+            with tab_tips:
+                st.markdown(f"<div class='glass-card'><h3>Study Tips for {selected_subject.capitalize()}</h3>", unsafe_allow_html=True)
+                tips = subject_info["tips"]
+                if tips:
+                    for tip in tips:
+                        st.markdown(f"- {tip}")
+                else:
+                    st.info("No study tips available for this subject.")
+                st.markdown("</div>", unsafe_allow_html=True)
+        else:
+            st.warning("Subject information not found in AI engine.")
 
-    with col_chat:
-        st.markdown("<div class='glass-card'><h3>Chat</h3>", unsafe_allow_html=True)
-        chat_area = st.container(height=420)
-        with chat_area:
-            if not st.session_state.chat_history:
-                st.markdown(f"<div class='chat-ai'>Hi {st.session_state.user_fullname}! I'm your <b>{persona_mode}</b>. Ask me anything.</div>", unsafe_allow_html=True)
-            for msg in st.session_state.chat_history:
-                css = "chat-user" if msg["role"] == "user" else "chat-ai"
-                label = "You" if msg["role"] == "user" else "AI"
-                st.markdown(f"<div class='{css}'><b>{label}:</b> {msg['content']}</div>", unsafe_allow_html=True)
 
-        chat_input = st.text_input("Ask a question…", key="chat_input")
-        col_send, col_clear = st.columns([3, 1])
-        with col_send:
-            if st.button("Send"):
-                if chat_input.strip():
-                    st.session_state.chat_history.append({"role": "user", "content": chat_input})
-                    reply = ai.ai_chat_response(chat_input, active_subject, persona_mode)
-                    st.session_state.chat_history.append({"role": "assistant", "content": reply})
-                    st.rerun()
-        with col_clear:
-            if st.button("Clear"):
-                st.session_state.chat_history = []
-                st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        st.markdown("<div class='glass-card'><h3>Concept Whiteboard</h3>", unsafe_allow_html=True)
-        wb_subject = st.selectbox("Subject to visualise", ["Mathematics", "Biology", "Physics", "Chemistry", "Computer Science"], key="wb_sel")
-        if st.button("Render Whiteboard"):
-            st.markdown(ai.generate_whiteboard_diagram(wb_subject))
-        st.markdown("</div>", unsafe_allow_html=True)
-
-# ── 3. Assignments ────────────────────────────────────
-
-elif page == "Assignments":
-    st.markdown("<div class='glass-card'><h1 style='margin:0;'>Assignments</h1><p style='color:#a5b4fc;'>Track, manage, and scan your work</p></div>", unsafe_allow_html=True)
+with tab_assignments:
+    st.markdown("<h2 style='text-align: center; color: #818cf8;'>Assignment Management</h2>", unsafe_allow_html=True)
 
     col_form, col_list = st.columns([1, 1.2])
 
     with col_form:
         st.markdown("<div class='glass-card'><h3>Add Assignment</h3>", unsafe_allow_html=True)
-        draft = st.session_state.draft_assignment
-        title      = st.text_input("Title", value=draft["title"])
-        subject    = st.text_input("Subject", value=draft["subject"])
-        due_date   = st.date_input("Due Date")
-        priority   = st.selectbox("Priority", ["Low", "Medium", "High"],   index=["Low","Medium","High"].index(draft["priority"]))
-        difficulty = st.selectbox("Difficulty", ["Easy", "Medium", "Hard"], index=["Easy","Medium","Hard"].index(draft["difficulty"]))
-        status     = st.selectbox("Status", ["Pending", "In Progress", "Completed", "Submitted"])
+        with st.form("add_assignment_form", clear_on_submit=True):
+            draft = st.session_state.draft_assignment
+            title      = st.text_input("Title", value=draft["title"])
+            subject    = st.text_input("Subject", value=draft["subject"])
+            # Ensure due_date is a datetime.date object
+            due_date   = st.date_input("Due Date", value=draft["due_date"] if isinstance(draft["due_date"], datetime.date) else datetime.date.today())
+            priority   = st.selectbox("Priority", ["Low", "Medium", "High"],   index=["Low","Medium","High"].index(draft["priority"]))
+            difficulty = st.selectbox("Difficulty", ["Easy", "Medium", "Hard"], index=["Easy","Medium","Hard"].index(draft["difficulty"]))
+            status     = st.selectbox("Status", ["Pending", "In Progress", "Completed", "Submitted"])
 
-        if st.button("Save Assignment"):
-            if title.strip() and subject.strip():
-                db.add_assignment(
-                    st.session_state.user_email, title, subject,
-                    str(due_date), priority, status, difficulty
-                )
-                st.success("Assignment saved!")
-                st.session_state.draft_assignment = {"title":"","subject":"","priority":"Medium","difficulty":"Medium"}
-                time.sleep(0.5)
+            add_submitted = st.form_submit_button("Add Assignment")
+            if add_submitted:
+                db.add_assignment(title, subject, due_date.strftime("%Y-%m-%d"), priority, difficulty, status)
+                # Reset draft after submission
+                st.session_state.draft_assignment = {
+                    "title": "", "subject": "", "due_date": datetime.date.today(),
+                    "priority": "Medium", "difficulty": "Medium", "status": "Pending"
+                }
                 st.rerun()
-            else:
-                st.warning("Title and subject are required.")
-
-        # Auto-save draft
-        st.session_state.draft_assignment = {"title": title, "subject": subject, "priority": priority, "difficulty": difficulty}
         st.markdown("</div>", unsafe_allow_html=True)
 
     with col_list:
-        st.markdown("<div class='glass-card'><h3>Task List</h3>", unsafe_allow_html=True)
-        subjects = ["All"] + list({a[2] for a in assignments})
-        f_sub  = st.selectbox("Filter by subject",  subjects)
-        f_pri  = st.selectbox("Filter by priority", ["All","High","Medium","Low"])
+        st.markdown("<div class='glass-card'><h3>All Assignments</h3>", unsafe_allow_html=True)
+        if not assignments_df.empty:
+            # Display assignments as a table or sortable list
+            st.dataframe(
+                assignments_df[['Title', 'Subject', 'Due Date', 'Priority', 'Status']],
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Due Date": st.column_config.DateColumn("Due Date", format="YYYY-MM-DD")
+                }
+            )
 
-        filtered = [
-            a for a in assignments
-            if (f_sub == "All" or a[2] == f_sub)
-            and (f_pri == "All" or a[4] == f_pri)
-        ]
+            st.markdown("<h4>Update/Delete Assignment</h4>", unsafe_allow_html=True)
+            col_select_id, col_actions = st.columns([0.7, 1.3])
+            with col_select_id:
+                assignment_ids = assignments_df['id'].tolist()
+                selected_assignment_id = st.selectbox("Select Assignment ID", assignment_ids, key="edit_assign_id")
 
-        if filtered:
-            for a in filtered:
-                with st.expander(f"{a[1]} — {a[2]} ({a[5]})"):
-                    st.write(f"Due: {a[3]} | Priority: **{a[4]}** | Difficulty: {a[6]}")
-                    c1, c2 = st.columns(2)
-                    with c1:
-                        if st.button("Delete", key=f"del_{a[0]}"):
-                            db.delete_assignment(a[0])
-                            st.rerun()
-                    with c2:
-                        if a[5] != "Completed" and st.button("Mark done", key=f"done_{a[0]}"):
-                            db.update_assignment_status(a[0], "Completed")
-                            db.add_notification(st.session_state.user_email, f"Completed: {a[1]}!")
-                            st.rerun()
+            if selected_assignment_id:
+                selected_assignment = assignments_df[assignments_df['id'] == selected_assignment_id].iloc[0]
+                with st.form(f"edit_assignment_form_{selected_assignment_id}"):
+                    edit_title      = st.text_input("Title", value=selected_assignment["Title"])
+                    edit_subject    = st.text_input("Subject", value=selected_assignment["Subject"])
+                    edit_due_date   = st.date_input("Due Date", value=selected_assignment["Due Date"].date()) # .date() to get date object
+                    edit_priority   = st.selectbox("Priority", ["Low", "Medium", "High"],   index=["Low","Medium","High"].index(selected_assignment["Priority"]))
+                    edit_difficulty = st.selectbox("Difficulty", ["Easy", "Medium", "Hard"], index=["Easy","Medium","Hard"].index(selected_assignment["Difficulty"]))
+                    edit_status     = st.selectbox("Status", ["Pending", "In Progress", "Completed", "Submitted"], index=["Pending", "In Progress", "Completed", "Submitted"].index(selected_assignment["Status"]))
+
+                    col_update, col_delete = st.columns(2)
+                    with col_update:
+                        update_submitted = st.form_submit_button("Update Assignment")
+                    with col_delete:
+                        delete_submitted = st.form_submit_button("Delete Assignment")
+
+                    if update_submitted:
+                        db.update_assignment(selected_assignment_id, edit_title, edit_subject, edit_due_date.strftime("%Y-%m-%d"), edit_priority, edit_difficulty, edit_status)
+                        st.rerun()
+                    if delete_submitted:
+                        db.delete_assignment(selected_assignment_id)
+                        st.rerun()
         else:
-            st.info("No matching assignments.")
+            st.info("No assignments added yet.")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown("<div class='glass-card'><h3>Grammar & Plagiarism Scanner</h3>", unsafe_allow_html=True)
-    check_text = st.text_area("Paste essay or draft here…", height=140)
-    if st.button("Run Scan"):
-        if check_text.strip():
-            result = ai.ai_grammar_plagiarism_check(check_text)
-            c1, c2 = st.columns(2)
-            with c1:
-                st.metric("Quality Score", f"{result['score']}/100")
-                st.metric("Plagiarism Index", f"{result['plagiarism_percent']}%")
-            with c2:
-                st.info(result["feedback"])
-                for err in result["grammar_errors"]:
-                    st.warning(err)
-                for src in result["plagiarism_sources"]:
-                    st.error(src)
-        else:
-            st.warning("Please paste some text first.")
-    st.markdown("</div>", unsafe_allow_html=True)
 
-# ── 4. Timetable ──────────────────────────────────────
-
-elif page == "Timetable":
-    st.markdown("<div class='glass-card'><h1 style='margin:0;'>Timetable</h1><p style='color:#a5b4fc;'>Schedule, track attendance, and launch classes</p></div>", unsafe_allow_html=True)
-
-    weekdays     = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
-    current_day  = weekdays[datetime.now().weekday()]
-    current_time = datetime.now().strftime("%H:%M")
-    st.info(f"Today is **{current_day}** — {current_time}")
-
-    active_found = False
-    for t in timetable:
-        t_id, t_sub, t_day, t_start, t_end, t_teacher, t_contact, t_zoom, t_att = t
-        if t_day == current_day and t_start <= current_time <= t_end:
-            active_found = True
-            zoom_url = t_zoom if t_zoom else "https://zoom.us"
-            st.markdown(f"""
-            <div class='active-class'>
-                <h3 style='color:#ef4444; margin:0;'>LIVE: {t_sub.upper()}</h3>
-                <p>{t_start}–{t_end} | {t_teacher} ({t_contact})</p>
-                <a href='{zoom_url}' target='_blank'>
-                  <button style='background:#ef4444;border:none;padding:8px 16px;color:white;border-radius:8px;font-weight:bold;cursor:pointer;'>
-                    Launch Zoom
-                  </button>
-                </a>
-            </div>
-            """, unsafe_allow_html=True)
-
-    if not active_found:
-        st.success("No class is active right now.")
-
-    col_grid, col_add = st.columns([1.5, 1])
-
-    with col_grid:
-        st.markdown("<div class='glass-card'><h3>Weekly Schedule</h3>", unsafe_allow_html=True)
-        schedule: dict = {d: [] for d in ["Monday","Tuesday","Wednesday","Thursday","Friday"]}
-        for t in timetable:
-            if t[2] in schedule:
-                schedule[t[2]].append(t)
-
-        for day, classes in schedule.items():
-            st.markdown(f"**{day}**")
-            if classes:
-                for cl in classes:
-                    att_label = "Attended" if cl[8] == 1 else "Mark attended"
-                    st.markdown(f"- **{cl[1]}** ({cl[3]}–{cl[4]}) | {cl[5]}")
-                    ca, cb, cc = st.columns(3)
-                    with ca:
-                        if cl[7]:
-                            st.markdown(f"[Join Zoom]({cl[7]})")
-                    with cb:
-                        if st.button("Remove", key=f"rm_{cl[0]}"):
-                            db.delete_timetable(cl[0])
-                            st.rerun()
-                    with cc:
-                        if st.button(att_label, key=f"att_{cl[0]}"):
-                            db.toggle_timetable_attendance(cl[0], 0 if cl[8] == 1 else 1)
-                            st.rerun()
-            else:
-                st.caption("No classes.")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with col_add:
-        st.markdown("<div class='glass-card'><h3>Add Class</h3>", unsafe_allow_html=True)
-        with st.form("add_class"):
-            sub      = st.text_input("Subject")
-            day      = st.selectbox("Day", ["Monday","Tuesday","Wednesday","Thursday","Friday"])
-            t_start  = st.time_input("Start", value=datetime.strptime("09:00","%H:%M").time())
-            t_end    = st.time_input("End",   value=datetime.strptime("10:00","%H:%M").time())
-            teacher  = st.text_input("Instructor", "Dr. Jane Smith")
-            contact  = st.text_input("Contact", "instructor@edu.ac")
-            zoom_lnk = st.text_input("Zoom URL", "https://zoom.us/j/1234567890")
-
-            if st.form_submit_button("Add to Schedule"):
-                if sub.strip():
-                    db.add_timetable(
-                        st.session_state.user_email, sub, day,
-                        t_start.strftime("%H:%M"), t_end.strftime("%H:%M"),
-                        teacher, contact, zoom_lnk
-                    )
-                    db.add_notification(st.session_state.user_email, f"Class added: {sub} on {day}.")
-                    st.success("Class scheduled!")
-                    time.sleep(0.5)
-                    st.rerun()
-                else:
-                    st.warning("Subject name is required.")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-# ── 5. Quiz Arena ─────────────────────────────────────
-
-elif page == "Quiz Arena":
-    st.markdown("<div class='glass-card'><h1 style='margin:0;'>Quiz Arena</h1><p style='color:#a5b4fc;'>Adaptive quizzes with timers and leaderboards</p></div>", unsafe_allow_html=True)
-
-    col_setup, col_board = st.columns([1, 1])
-
-    with col_setup:
-        st.markdown("<div class='glass-card'><h3>Build Your Quiz</h3>", unsafe_allow_html=True)
-        q_subject = st.selectbox("Subject", ["Mathematics","Biology","Physics","Chemistry","Computer Science"])
-        q_level   = st.selectbox("Level", ["Primary School","High School","University"])
-        battle    = st.checkbox("Simulate Multiplayer Battle vs AI")
-
-        if st.button("Start Quiz"):
-            st.session_state.quiz_questions   = ai.generate_adaptive_quiz(q_subject, q_level)
-            st.session_state.quiz_score       = 0
-            st.session_state.quiz_timer_start = time.time()
-            st.session_state.battle_mode      = battle
-            st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with col_board:
-        st.markdown("<div class='glass-card'><h3>Leaderboard</h3>", unsafe_allow_html=True)
-        lb = pd.DataFrame([
-            {"Rank":1, "Student": st.session_state.user_fullname + " (You)", "Score":"95%","Streak":"7 days"},
-            {"Rank":2, "Student":"AI Bot Tutor",     "Score":"90%","Streak":"14 days"},
-            {"Rank":3, "Student":"Classmate Alpha",  "Score":"82%","Streak":"3 days"},
-            {"Rank":4, "Student":"Classmate Beta",   "Score":"60%","Streak":"0 days"},
-        ])
-        st.table(lb)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    if st.session_state.quiz_questions:
-        elapsed   = int(time.time() - st.session_state.quiz_timer_start)
-        time_left = max(0, 60 - elapsed)
-
-        st.markdown(f"<div class='glass-card'><h3>{q_subject} — {q_level}</h3>", unsafe_allow_html=True)
-        if time_left == 0:
-            st.error("Time's up! Submit your answers.")
-        else:
-            st.warning(f"Time remaining: {time_left}s")
-        if st.session_state.battle_mode:
-            st.info("Battle mode: race the AI!")
-
-        with st.form("quiz_form"):
-            user_answers = {}
-            for i, q in enumerate(st.session_state.quiz_questions):
-                st.write(f"**Q{i+1}: {q['question']}**")
-                user_answers[i] = st.radio("Answer:", q["options"], key=f"q_{i}")
-
-            if st.form_submit_button("Submit Answers"):
-                correct = 0
-                total   = len(st.session_state.quiz_questions)
-                review  = ""
-                for i, q in enumerate(st.session_state.quiz_questions):
-                    if user_answers[i] == q["answer"]:
-                        correct += 1
-                        review += f"<p style='color:#34d399;'>Q{i+1}: Correct — {user_answers[i]}</p>"
-                    else:
-                        review += f"<p style='color:#f87171;'>Q{i+1}: Incorrect — you chose {user_answers[i]}, answer is <b>{q['answer']}</b></p>"
-
-                pct = int(correct / total * 100)
-                db.add_quiz_record(st.session_state.user_email, q_subject, correct, total, pct, q_level)
-                st.metric("Score", f"{correct}/{total} ({pct}%)")
-                if pct >= 80:
-                    st.success("Excellent work!")
-                    st.balloons()
-                else:
-                    st.warning("Keep practising — review the answers below.")
-                st.markdown(review, unsafe_allow_html=True)
-                st.session_state.quiz_questions = []
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-# ── 6. Analytics ──────────────────────────────────────
-
-elif page == "Analytics":
-    st.markdown("<div class='glass-card'><h1 style='margin:0;'>Analytics</h1><p style='color:#a5b4fc;'>Focus tracking, quiz trends, and GPA prediction</p></div>", unsafe_allow_html=True)
-
-    col_log, col_gpa = st.columns([1.2, 1])
-
-    with col_log:
-        st.markdown("<div class='glass-card'><h3>Log Study Session</h3>", unsafe_allow_html=True)
-        with st.form("focus_form"):
-            mins        = st.number_input("Duration (minutes)", min_value=5, max_value=480, value=60)
-            sess_date   = st.date_input("Date", value=date.today())
-            if st.form_submit_button("Record Session"):
-                db.add_focus_session(st.session_state.user_email, sess_date, mins)
-                db.add_notification(st.session_state.user_email, f"Logged {mins} minute study session.")
-                st.success("Session recorded!")
-                time.sleep(0.5)
-                st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with col_gpa:
-        st.markdown("<div class='glass-card'><h3>Target GPA</h3>", unsafe_allow_html=True)
-        new_gpa = st.slider("Set target GPA", 1.0, 4.0, gpa_target, 0.1)
-        if st.button("Save Target"):
-            db.update_user_gpa_target(st.session_state.user_email, new_gpa)
-            st.success(f"Target GPA set to {new_gpa:.1f}!")
-            st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    if PLOTLY_AVAILABLE:
-        c1, c2 = st.columns(2)
-        with c1:
-            if quiz_records:
-                df_q = pd.DataFrame(quiz_records, columns=["ID","Subject","Score","Total","Percentage","Date","Difficulty"])
-                df_q["Date"] = pd.to_datetime(df_q["Date"])
-                fig = px.line(df_q.sort_values("Date"), x="Date", y="Percentage", color="Subject",
-                              markers=True, title="Quiz Scores Over Time", template="plotly_dark")
-                fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.info("Take quizzes to see score trends.")
-
-        with c2:
-            if focus_sessions:
-                df_f = pd.DataFrame(focus_sessions, columns=["ID","Date","Minutes"])
-                df_f["Date"] = pd.to_datetime(df_f["Date"])
-                fig = px.bar(df_f.sort_values("Date"), x="Date", y="Minutes",
-                             title="Study Minutes Per Session", template="plotly_dark",
-                             color_discrete_sequence=["#818cf8"])
-                fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.info("Log sessions to see productivity charts.")
-    else:
-        if quiz_records:
-            df_q = pd.DataFrame(quiz_records, columns=["ID","Subject","Score","Total","Percentage","Date","Difficulty"])
-            st.bar_chart(df_q.set_index("Date")["Percentage"])
-        if focus_sessions:
-            df_f = pd.DataFrame(focus_sessions, columns=["ID","Date","Minutes"])
-            st.bar_chart(df_f.set_index("Date")["Minutes"])
-
-    # GPA Prediction
-    st.markdown("<div class='glass-card'><h3>GPA Prediction</h3>", unsafe_allow_html=True)
-    if quiz_records:
-        avg = sum(q[4] for q in quiz_records) / len(quiz_records)
-        predicted = min(4.0, avg / 100.0 * 4.0 + 0.2)
-        st.write(f"Quiz average: **{avg:.1f}%** → Predicted GPA: **{predicted:.2f}** / Target: **{gpa_target:.2f}**")
-        if predicted >= gpa_target:
-            st.success("On track to meet or exceed your target!")
-        else:
-            st.warning("Slightly below target — check recommendations below.")
-    else:
-        st.info("Complete quizzes to enable GPA prediction.")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # Recommendations
-    st.markdown("<div class='glass-card'><h3>Study Recommendations</h3>", unsafe_allow_html=True)
-    recs = ai.generate_study_recommendations(quiz_records, assignments)
-    for r in recs:
-        color = {"High": "#f87171", "Medium": "#fbbf24", "Low": "#34d399"}.get(r["priority"], "#64748b")
-        st.markdown(f"""
-        <div style='padding:10px;border-radius:10px;background:rgba(255,255,255,0.03);
-                    border-left:4px solid {color};margin-bottom:8px;'>
-            <strong>[{r['priority']}] {r['subject']}</strong>: {r['reason']}
-            <em style='color:#64748b;'> → {r['action']}</em>
-        </div>
-        """, unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # Report download
-    st.markdown("<div class='glass-card'><h3>Download Report Card</h3>", unsafe_allow_html=True)
-    rows = "".join(
-        f"<tr><td>{q[1]}</td><td>{q[2]}/{q[3]}</td><td>{q[4]}%</td><td>{q[5]}</td></tr>"
-        for q in quiz_records
-    )
-    report_html = f"""
-    <html><head><style>
-      body{{font-family:sans-serif;padding:20px}}
-      table{{width:100%;border-collapse:collapse}}
-      th,td{{border:1px solid #ccc;padding:8px;text-align:left}}
-    </style></head><body>
-      <h1>EduMate AI — Academic Report</h1>
-      <p><strong>Student:</strong> {st.session_state.user_fullname}</p>
-      <p><strong>Email:</strong> {st.session_state.user_email}</p>
-      <p><strong>Generated:</strong> {date.today()}</p>
-      <hr/>
-      <h2>Quiz Records</h2>
-      <table><tr><th>Subject</th><th>Score</th><th>Percentage</th><th>Date</th></tr>
-      {rows}</table>
-    </body></html>
-    """
-    st.download_button(
-        "Download HTML Report",
-        data=report_html,
-        file_name=f"edumate_report_{st.session_state.user_fullname.replace(' ','_')}.html",
-        mime="text/html",
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# ── Footer ────────────────────────────────────────────
 st.markdown("<div class='footer'>© 2026 EduMate AI</div>", unsafe_allow_html=True)
+
+# ======================================================
+# RUN:
+# streamlit run app.py
+# ======================================================
