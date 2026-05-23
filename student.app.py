@@ -8,6 +8,7 @@ import time
 import json
 import os
 from difflib import get_close_matches
+
 # Try importing plotly, fallback if not present
 try:
     import plotly.express as px
@@ -15,6 +16,7 @@ try:
     PLOTLY_AVAILABLE = True
 except ImportError:
     PLOTLY_AVAILABLE = False
+
 # ======================================================
 # PAGE CONFIG
 # ======================================================
@@ -24,14 +26,18 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
 # ======================================================
-# DATABASE SETUP
+# DATABASE SETUP (PORTABLE RELATIVE PATH)
 # ======================================================
-DB_PATH = "C:\\Users\\hilla\\.gemini\\antigravity\\scratch\\edumate_ai\\edumate_ai.db"
+DB_PATH = "edumate_ai.db"
+
 @st.cache_resource
 def get_connection():
-    # Ensure directory exists
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    # Ensure directory exists if needed
+    db_dir = os.path.dirname(DB_PATH)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     c = conn.cursor()
     
@@ -138,13 +144,16 @@ def get_connection():
     
     conn.commit()
     return conn
+
 conn = get_connection()
 c = conn.cursor()
+
 # ======================================================
 # DB HELPERS
 # ======================================================
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
+
 def create_user(fullname, email, password):
     try:
         c.execute("""
@@ -167,19 +176,23 @@ def create_user(fullname, email, password):
         return True
     except:
         return False
+
 def login_user(email, password):
     c.execute("""
     SELECT * FROM users
     WHERE email=? AND password=?
     """, (email, hash_password(password)))
     return c.fetchone()
+
 def update_user_gpa_target(email, target):
     c.execute("UPDATE users SET gpa_target=? WHERE email=?", (target, email))
     conn.commit()
+
 def get_user_gpa_target(email):
     c.execute("SELECT gpa_target FROM users WHERE email=?", (email,))
     row = c.fetchone()
     return row[0] if row else 4.0
+
 def add_assignment(user_email, title, subject, due_date, priority, status, difficulty="Medium", file_name=None, file_content=None, teacher_comments="", score=0):
     c.execute("""
     INSERT INTO assignments (user_email, title, subject, due_date, priority, status, difficulty, file_name, file_content, teacher_comments, score)
@@ -187,6 +200,7 @@ def add_assignment(user_email, title, subject, due_date, priority, status, diffi
     """, (user_email, title, subject, due_date, priority, status, difficulty, file_name, file_content, teacher_comments, score))
     conn.commit()
     add_notification(user_email, f"New assignment created: **{title}** in **{subject}**.")
+
 def get_assignments(user_email):
     c.execute("""
     SELECT id, title, subject, due_date, priority, status, difficulty, file_name, file_content, teacher_comments, score
@@ -195,21 +209,25 @@ def get_assignments(user_email):
     ORDER BY due_date ASC
     """, (user_email,))
     return c.fetchall()
+
 def delete_assignment(aid):
     c.execute("DELETE FROM assignments WHERE id=?", (aid,))
     conn.commit()
+
 def update_assignment_status(aid, status, score=0, teacher_comments=""):
     if status == "Graded":
         c.execute("UPDATE assignments SET status=?, score=?, teacher_comments=? WHERE id=?", (status, score, teacher_comments, aid))
     else:
         c.execute("UPDATE assignments SET status=? WHERE id=?", (status, aid))
     conn.commit()
+
 def add_timetable(user_email, subject, day, start_time, end_time, teacher_name="Unknown", teacher_contact="N/A", zoom_link=""):
     c.execute("""
     INSERT INTO timetable (user_email, subject, day, start_time, end_time, teacher_name, teacher_contact, zoom_link)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, (user_email, subject, day, start_time, end_time, teacher_name, teacher_contact, zoom_link))
     conn.commit()
+
 def get_timetable(user_email):
     c.execute("""
     SELECT id, subject, day, start_time, end_time, teacher_name, teacher_contact, zoom_link, attended
@@ -217,12 +235,15 @@ def get_timetable(user_email):
     WHERE user_email=?
     """, (user_email,))
     return c.fetchall()
+
 def delete_timetable(tid):
     c.execute("DELETE FROM timetable WHERE id=?", (tid,))
     conn.commit()
+
 def toggle_timetable_attendance(tid, attended):
     c.execute("UPDATE timetable SET attended=? WHERE id=?", (attended, tid))
     conn.commit()
+
 def get_or_update_streak(user_email):
     today = str(date.today())
     c.execute("SELECT streak, last_login, badges FROM study_streak WHERE user_email=?", (user_email,))
@@ -259,6 +280,7 @@ def get_or_update_streak(user_email):
     if new_streak >= 15 and "Study Beast 🦁" not in new_badges:
         new_badges.append("Study Beast 🦁")
         add_notification(user_email, "Badge Unlocked! 👑 Unstoppable force! 15-Day streak!")
+
     c.execute("""
     UPDATE study_streak
     SET streak=?, last_login=?, badges=?
@@ -267,6 +289,7 @@ def get_or_update_streak(user_email):
     conn.commit()
     
     return new_streak, new_badges
+
 def add_quiz_record(user_email, subject, score, total, percentage, difficulty):
     today = str(date.today())
     c.execute("""
@@ -279,6 +302,7 @@ def add_quiz_record(user_email, subject, score, total, percentage, difficulty):
         add_notification(user_email, f"Excellent! You scored {percentage}% in a {difficulty} {subject} quiz. 🌟")
     elif percentage < 50:
         add_notification(user_email, f"Keep practicing! You scored {percentage}% in {subject}. Re-check the study materials. 📚")
+
 def get_quiz_records(user_email):
     c.execute("""
     SELECT id, subject, score, total, percentage, date_taken, difficulty
@@ -287,21 +311,25 @@ def get_quiz_records(user_email):
     ORDER BY date_taken DESC
     """, (user_email,))
     return c.fetchall()
+
 def add_flashcard(user_email, subject, front, back):
     c.execute("""
     INSERT INTO flashcards (user_email, subject, front, back)
     VALUES (?, ?, ?, ?)
     """, (user_email, subject, front, back))
     conn.commit()
+
 def get_flashcards(user_email, subject=None):
     if subject:
         c.execute("SELECT id, subject, front, back FROM flashcards WHERE user_email=? AND subject=?", (user_email, subject))
     else:
         c.execute("SELECT id, subject, front, back FROM flashcards WHERE user_email=?", (user_email,))
     return c.fetchall()
+
 def delete_flashcard(fid):
     c.execute("DELETE FROM flashcards WHERE id=?", (fid,))
     conn.commit()
+
 def add_notification(user_email, message):
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     c.execute("""
@@ -309,6 +337,7 @@ def add_notification(user_email, message):
     VALUES (?, ?, ?, 0)
     """, (user_email, message, now))
     conn.commit()
+
 def get_notifications(user_email):
     c.execute("""
     SELECT id, message, timestamp, read
@@ -317,15 +346,18 @@ def get_notifications(user_email):
     ORDER BY timestamp DESC
     """, (user_email,))
     return c.fetchall()
+
 def mark_notifications_read(user_email):
     c.execute("UPDATE notifications SET read=1 WHERE user_email=?", (user_email,))
     conn.commit()
+
 def add_focus_session(user_email, session_date, duration_mins):
     c.execute("""
     INSERT INTO focus_sessions (user_email, date, duration_mins)
     VALUES (?, ?, ?)
     """, (user_email, str(session_date), duration_mins))
     conn.commit()
+
 def get_focus_sessions(user_email):
     c.execute("""
     SELECT id, date, duration_mins
@@ -334,6 +366,7 @@ def get_focus_sessions(user_email):
     ORDER BY date ASC
     """, (user_email,))
     return c.fetchall()
+
 # ======================================================
 # LOCAL AI SIMULATION ENGINE
 # ======================================================
@@ -389,6 +422,7 @@ KNOWLEDGE_BASE = {
         ]
     }
 }
+
 PERSONAS = {
     "Friendly Tutor": {
         "prefix": "Hello! I'm your friendly tutor. Let's work together to figure this out! 😊\n\n",
@@ -403,6 +437,7 @@ PERSONAS = {
         "suffix": "\n\nSuccess isn't given; it's earned! Let's keep pushing! What's our next goal? 🔥"
     }
 }
+
 def ai_chat_response(prompt, subject="computer science", persona_mode="Friendly Tutor"):
     prompt_lower = prompt.lower()
     persona = PERSONAS.get(persona_mode, PERSONAS["Friendly Tutor"])
@@ -430,6 +465,7 @@ def ai_chat_response(prompt, subject="computer science", persona_mode="Friendly 
             response = f"Interesting question about {subject}! That covers key parts of curriculum standards. Make sure to build a quick summary of the core definitions, practice equations daily, and use active recall flashcards to test your memory retention."
             
     return f"{persona['prefix']}{response}{persona['suffix']}"
+
 def generate_flashcards(prompt, subject="General"):
     prompt = prompt.lower()
     concepts = [
@@ -456,23 +492,23 @@ def generate_flashcards(prompt, subject="General"):
             ("Recursion", "A programming technique where a function calls itself directly or indirectly.")
         ]
     return [{"front": f[0], "back": f[1], "subject": subject.title()} for f in concepts]
+
 def generate_whiteboard_diagram(subject):
     sub = subject.lower()
     matched = get_close_matches(sub, KNOWLEDGE_BASE.keys(), n=1, cutoff=0.3)
     if matched:
         return KNOWLEDGE_BASE[matched[0]]["whiteboard"]
     return """### 🎨 Freeform AI Drawing Board
-```
     ┌──────────────────────────────────┐
-    │                                  │
-    │         [ Your Concept ]         │
-    │                │                 │
-    │                ▼                 │
-    │         [ Subtopic A ]           │
-    │                                  │
-    └──────────────────────────────────┘
-```
-Select a core science subject (Math, Biology, Physics, Chemistry, CS) to render a structured diagram!"""
+  │                                  │
+  │         [ Your Concept ]         │
+  │                │                 │
+  │                ▼                 │
+  │         [ Subtopic A ]           │
+  │                                  │
+  └──────────────────────────────────┘
+    Select a core science subject (Math, Biology, Physics, Chemistry, CS) to render a structured diagram!"""
+
 def ai_grammar_plagiarism_check(text):
     if not text or len(text.strip()) < 10:
         return {
@@ -519,6 +555,7 @@ def ai_grammar_plagiarism_check(text):
         "plagiarism_sources": sources,
         "feedback": feedback
     }
+
 def translate_notes(text, target_language):
     lang_map = {
         "Spanish": " [Traducido al Español]: ",
@@ -546,6 +583,7 @@ def translate_notes(text, target_language):
         else:
             translated_words.append(word)
     return prefix + " ".join(translated_words)
+
 def generate_study_recommendations(quiz_records, assignments):
     recommendations = []
     subject_scores = {}
@@ -588,6 +626,7 @@ def generate_study_recommendations(quiz_records, assignments):
             "action": "Start Study Session"
         })
     return recommendations
+
 TEST_BANK = {
     "Primary School": {
         "Mathematics": [
@@ -628,6 +667,7 @@ TEST_BANK = {
         ]
     }
 }
+
 def generate_adaptive_quiz(subject, level):
     level_data = TEST_BANK.get(level, TEST_BANK["High School"])
     questions = level_data.get(subject, None)
@@ -654,20 +694,24 @@ def generate_adaptive_quiz(subject, level):
             "answer": q["answer"]
         })
     return randomized_qs
+
 # ======================================================
 # MODERN UI STYLING
 # ======================================================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@300;500;700&display=swap');
+
 html, body, [class*="css"] {
     font-family: 'Outfit', 'Space Grotesk', sans-serif;
     color: #f8fafc;
 }
+
 .stApp {
     background: linear-gradient(135deg, #090d16 0%, #0f172a 40%, #1e1b4b 100%);
     background-attachment: fixed;
 }
+
 .main-title {
     text-align: center;
     background: linear-gradient(90deg, #818cf8, #6366f1, #3b82f6, #60a5fa);
@@ -678,12 +722,14 @@ html, body, [class*="css"] {
     margin-bottom: 2px;
     letter-spacing: -2px;
 }
+
 .sub-title {
     text-align: center;
     color: #94a3b8;
     font-size: 22px;
     margin-bottom: 30px;
 }
+
 .glass-card {
     background: rgba(255, 255, 255, 0.04);
     backdrop-filter: blur(16px);
@@ -696,9 +742,11 @@ html, body, [class*="css"] {
     margin-bottom: 20px;
     transition: transform 0.3s ease, border 0.3s ease;
 }
+
 .glass-card:hover {
     border: 1px solid rgba(129, 140, 248, 0.25);
 }
+
 .metric-card {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
     backdrop-filter: blur(12px);
@@ -709,6 +757,7 @@ html, body, [class*="css"] {
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
     margin-bottom: 15px;
 }
+
 .metric-card h1 {
     font-size: 45px;
     margin: 5px 0;
@@ -717,6 +766,7 @@ html, body, [class*="css"] {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
+
 .badge-pill {
     background: linear-gradient(135deg, #4338ca 0%, #1e1b4b 100%);
     border: 1px solid #6366f1;
@@ -728,6 +778,7 @@ html, body, [class*="css"] {
     display: inline-block;
     margin: 4px;
 }
+
 .stButton > button {
     width: 100%;
     border: none;
@@ -740,11 +791,13 @@ html, body, [class*="css"] {
     box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
     transition: all 0.3s ease;
 }
+
 .stButton > button:hover {
     background: linear-gradient(90deg, #3b82f6, #2563eb);
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
 }
+
 .chat-bubble-user {
     background: rgba(59, 130, 246, 0.15);
     border-left: 4px solid #3b82f6;
@@ -753,6 +806,7 @@ html, body, [class*="css"] {
     margin: 10px 0;
     color: #f1f5f9;
 }
+
 .chat-bubble-ai {
     background: rgba(129, 140, 248, 0.12);
     border-left: 4px solid #818cf8;
@@ -761,16 +815,19 @@ html, body, [class*="css"] {
     margin: 10px 0;
     color: #f1f5f9;
 }
+
 .current-class-highlight {
     background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.05) 100%);
     border: 2px solid #ef4444 !important;
     animation: pulse 2s infinite;
 }
+
 @keyframes pulse {
     0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
     70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
     100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
+
 .footer {
     text-align: center;
     color: #64748b;
@@ -779,6 +836,7 @@ html, body, [class*="css"] {
 }
 </style>
 """, unsafe_allow_html=True)
+
 # ======================================================
 # SESSION STATE
 # ======================================================
@@ -800,12 +858,14 @@ if "battle_mode" not in st.session_state:
     st.session_state.battle_mode = False
 if "auto_save_assignment" not in st.session_state:
     st.session_state.auto_save_assignment = {"title": "", "subject": "", "priority": "Medium", "difficulty": "Medium"}
+
 # ======================================================
 # GATEWAY VIEW
 # ======================================================
 if not st.session_state.logged_in:
     st.markdown('<div class="main-title">🎓 EduMate AI</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-title">Premium Global AI Education Platform</div>', unsafe_allow_html=True)
+
     auth_menu = st.sidebar.selectbox("Access Gate", ["Login", "Register"])
     
     if auth_menu == "Register":
@@ -828,6 +888,7 @@ if not st.session_state.logged_in:
                 else:
                     st.error("Email address already registered.")
         st.markdown("</div>", unsafe_allow_html=True)
+
     elif auth_menu == "Login":
         col_login, col_features = st.columns([1.2, 1])
         
@@ -861,11 +922,11 @@ if not st.session_state.logged_in:
                 <p>📈 <b>Grade & Focus Analytics:</b> Real-time charts of study hours, focus session heatmaps, and target GPA trackers.</p>
             </div>
             """, unsafe_allow_html=True)
+
 # ======================================================
 # CORE MAIN APPLICATION
 # ======================================================
 else:
-    # Sidebar
     st.sidebar.markdown(f"<h2 style='text-align:center;'>🎓 EduMate Premium</h2>", unsafe_allow_html=True)
     st.sidebar.success(f"Student: {st.session_state.user_fullname}\n({st.session_state.user_email})")
     
@@ -888,7 +949,6 @@ else:
         st.session_state.chat_history = []
         st.rerun()
         
-    # Get active variables
     assignments = get_assignments(st.session_state.user_email)
     timetable = get_timetable(st.session_state.user_email)
     streak, badges = get_or_update_streak(st.session_state.user_email)
@@ -896,6 +956,7 @@ else:
     quiz_records = get_quiz_records(st.session_state.user_email)
     focus_sessions = get_focus_sessions(st.session_state.user_email)
     gpa_target = get_user_gpa_target(st.session_state.user_email)
+
     # ==================================================
     # 1. STUDENT DASHBOARD PAGE
     # ==================================================
@@ -920,7 +981,6 @@ else:
         ]
         motivational_quote = quotes[hash(st.session_state.user_fullname) % len(quotes)]
         
-        # Dashboard Welcomer
         st.markdown(f"""
         <div class='glass-card' style='background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%); border-left: 6px solid #6366f1;'>
             <div style='display: flex; justify-content: space-between; align-items: center;'>
@@ -936,7 +996,6 @@ else:
         </div>
         """, unsafe_allow_html=True)
         
-        # Stats Cards
         col_a, col_b, col_c, col_d = st.columns(4)
         with col_a:
             pending_count = len([a for a in assignments if a[5] not in ["Completed", "Graded"]])
@@ -1003,6 +1062,7 @@ else:
             else:
                 st.info("No schedule entries. Add events in the Timetable Planner!")
             st.markdown("</div>", unsafe_allow_html=True)
+
         with col_right:
             st.markdown("<div class='glass-card'><h3>🏆 Badges & Accomplishments</h3>", unsafe_allow_html=True)
             badge_html = ""
@@ -1064,6 +1124,7 @@ else:
             else:
                 st.write("No notifications yet.")
             st.markdown("</div>", unsafe_allow_html=True)
+
     # ==================================================
     # 2. AI ASSISTANT CHAT & TOOLS PAGE
     # ==================================================
@@ -1152,6 +1213,7 @@ else:
                 diag = generate_whiteboard_diagram(whiteboard_subject)
                 st.markdown(diag)
             st.markdown("</div>", unsafe_allow_html=True)
+
     # ==================================================
     # 3. ASSIGNMENTS TRACKER PAGE
     # ==================================================
@@ -1249,6 +1311,7 @@ else:
                     for src in result["plagiarism_sources"]:
                         st.error(src)
         st.markdown("</div>", unsafe_allow_html=True)
+
     # ==================================================
     # 4. TIMETABLE PLANNER PAGE
     # ==================================================
@@ -1342,6 +1405,7 @@ else:
                     time.sleep(1)
                     st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
+
     # ==================================================
     # 5. QUIZ GENERATOR PAGE
     # ==================================================
@@ -1430,6 +1494,7 @@ else:
                     st.markdown(review_html, unsafe_allow_html=True)
                     st.session_state.quiz_questions = []
             st.markdown("</div>", unsafe_allow_html=True)
+
     # ==================================================
     # 6. ANALYTICS DASHBOARD PAGE
     # ==================================================
@@ -1551,6 +1616,7 @@ else:
             mime="text/html"
         )
         st.markdown("</div>", unsafe_allow_html=True)
+
 # ======================================================
 # GLOBAL FOOTER
 # ======================================================
@@ -1559,3 +1625,8 @@ st.markdown("""
 © 2026 EduMate AI | Built with Rich Aesthetics & Dynamic Learning Memory 🌍
 </div>
 """, unsafe_allow_html=True)
+
+# ======================================================
+# RUN:
+# streamlit run app.py
+# ======================================================
